@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Random Word</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <h1>Random Word</h1>
+      <div class="controls">
+        <label class="count-label">
+          Count
+          <input id="countInput" class="count-input" type="number" min="1" max="10" value="1" />
+        </label>
+        <button id="newWordBtn" class="btn" disabled>New Word</button>
+      </div>
+    </header>
+
+    <section id="status" class="status">Loading word list…</section>
+
+    <section id="cards" class="cards"></section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

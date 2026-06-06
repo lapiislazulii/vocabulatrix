@@ -1,0 +1,333 @@
+/* Animated angle used by the liquid-glass border. Driven per-card from app.js
+   (organic, randomized motion) rather than a shared CSS keyframe. inherits:true
+   so the value app.js sets on the .result element reaches the ::before ring. */
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: true;
+}
+
+/* Morph controls: --lqW stretches the bright band, --lqShift slides the
+   secondary highlight, so the ring reads as liquid pooling and stretching.
+   inherits:true for the same reason as --angle above. */
+@property --lqW {
+  syntax: "<number>";
+  initial-value: 0.5;
+  inherits: true;
+}
+@property --lqShift {
+  syntax: "<number>";
+  initial-value: 0;
+  inherits: true;
+}
+
+:root {
+  --bg: #050505;          /* ultra-dark near-black */
+  --surface: rgba(255, 255, 255, 0.028);
+  --surface-2: rgba(255, 255, 255, 0.06);
+  --text: #f4f4f4;        /* near-white */
+  --muted: #888888;       /* mid grey */
+  --faint: #5a5a5a;       /* dim grey */
+  --border: rgba(255, 255, 255, 0.09);
+  --radius: 16px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background:
+    radial-gradient(1100px 560px at 50% -10%, #141414, var(--bg) 70%);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.55;
+}
+
+.app {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.topbar h1 {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin: 0;
+  color: var(--faint);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.count-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.count-input {
+  width: 54px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 14px;
+  text-align: center;
+}
+.count-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* Minimal monochrome button. */
+.btn {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.08s ease;
+}
+.btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+
+.status {
+  text-align: center;
+  color: var(--muted);
+  padding: 40px 0;
+  font-size: 15px;
+}
+.status.error { color: #c9c9c9; }
+
+/* Card masonry: cards are distributed into equal-width columns by app.js, each
+   card dropped into the currently-shortest column so tall and short cards pack
+   together tetris-style instead of leaving the big gaps a plain grid would.
+   Columns are flex tracks; the page scrolls vertically through them. */
+.cards {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+}
+.cards:empty { display: none; }
+
+.col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  flex: 1 1 0;
+  min-width: 0; /* equal-width columns; let card max-width govern actual size */
+}
+
+/* === Liquid-glass definition box ========================================== */
+.result {
+  position: relative;
+  width: 100%;
+  min-width: 0; /* let the column govern width; long words wrap, not overflow */
+  max-width: 680px; /* keeps a lone card at its original size, not full-grid */
+  /* Visible panel fill + a base border so the card always reads, even before
+     the animated ring paints or if backdrop-filter is unavailable. */
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: var(--radius);
+  padding: 30px;
+  isolation: isolate;
+  /* The spawn animation (springy fly-in + jiggle) is driven by app.js via the
+     Web Animations API, so its timing can stagger and sync with the scramble. */
+  will-change: transform, opacity, filter;
+}
+
+/* Rotating gradient ring, clipped to a thin border via mask. */
+.result::before {
+  content: "";
+  position: absolute;
+  inset: -1px; /* sit over the base border */
+  z-index: -1;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--angle),
+    transparent 0deg,
+    rgba(255, 255, 255, 0.05) 35deg,
+    rgba(255, 255, 255, 1) 90deg,
+    /* bright plateau whose width breathes with --lqW (0..1 => +0..34deg) */
+    rgba(255, 255, 255, 1) calc(90deg + var(--lqW) * 34deg),
+    rgba(255, 255, 255, 0.12) 150deg,
+    transparent 205deg,
+    /* secondary highlight slides with --lqShift (-1..1 => 247..323deg) */
+    rgba(255, 255, 255, 0.7) calc(285deg + var(--lqShift) * 38deg),
+    rgba(255, 255, 255, 0.08) 335deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Reduced-motion: app.js skips the rAF drive and leaves a calm static ring. */
+
+
+.word-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 18px;
+  margin-bottom: 20px;
+}
+
+.word {
+  font-size: clamp(28px, 2.4vw, 40px);
+  font-weight: 600;
+  margin: 0;
+  text-transform: capitalize;
+  color: #ffffff;
+  overflow-wrap: anywhere; /* break very long words instead of spilling out */
+  hyphens: auto;
+}
+
+.phonetic {
+  color: var(--muted);
+  font-size: 18px;
+  font-family: "Cambria Math", Georgia, serif;
+}
+
+.audio-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.18s ease;
+}
+.audio-btn:hover { background: rgba(255, 255, 255, 0.16); }
+
+.meaning { margin-bottom: 26px; }
+
+.pos {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.pos::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.defs {
+  list-style: none;
+  counter-reset: def;
+  padding: 0;
+  margin: 0 0 14px;
+}
+.defs li {
+  counter-increment: def;
+  position: relative;
+  padding-left: 30px;
+  margin-bottom: 12px;
+}
+.defs li::before {
+  content: counter(def);
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--surface-2);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.example {
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 4px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+}
+
+.rel {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 4px 0 0 30px;
+}
+.rel strong { color: var(--text); font-weight: 500; }
+.chip {
+  display: inline-block;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 8px;
+  margin: 2px 3px 2px 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.origin {
+  color: var(--muted);
+  font-size: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 8px;
+}
+.origin:empty { display: none; }
+
+.source-urls {
+  font-size: 12px;
+  color: var(--faint);
+  margin-top: 12px;
+}
+.source-urls a { color: var(--muted); }
+.source-urls a:hover { color: var(--text); }
+
+.hidden { display: none; }
