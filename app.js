@@ -6,6 +6,15 @@ const els = {
   cards: document.getElementById("cards"),
   countInput: document.getElementById("countInput"),
   btn: document.getElementById("newWordBtn"),
+  hoverToggle: document.getElementById("hoverToggle"),
+  fxBtn: document.getElementById("fxBtn"),
+  fxMenu: document.getElementById("fxMenu"),
+  spawnSpeed: document.getElementById("spawnSpeed"),
+  spawnSpeedVal: document.getElementById("spawnSpeedVal"),
+  hoverSpeed: document.getElementById("hoverSpeed"),
+  hoverSpeedVal: document.getElementById("hoverSpeedVal"),
+  hoverLinger: document.getElementById("hoverLinger"),
+  hoverLingerVal: document.getElementById("hoverLingerVal"),
 };
 
 let words = [];
@@ -254,9 +263,56 @@ async function fetchDefinedWord() {
 // --- Render ------------------------------------------------------------------
 // Build a self-contained card element for one word. Each card owns its own
 // audio button so several can live in the grid at once.
+// Clipboard + check icons for the quick-copy button (swapped on success).
+const COPY_ICON =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" ' +
+  'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>';
+const CHECK_ICON =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" ' +
+  'stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M5 13l4 4L19 7"/></svg>';
+
+// Copy text to the clipboard. Uses the async Clipboard API in a secure context
+// (the localhost dev server), and falls back to a hidden-textarea + execCommand
+// when that's unavailable — e.g. the single-file build opened straight off file://.
+function copyToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    return;
+  }
+  fallbackCopy(text);
+}
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.top = "-1000px";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); } catch (_) {}
+  document.body.removeChild(ta);
+}
+
 function buildCard(model) {
   const card = document.createElement("article");
   card.className = "result";
+
+  // Small grey Google "G" in the top-right corner; searches the exact word.
+  const googleLink = document.createElement("a");
+  googleLink.className = "google-search";
+  googleLink.title = `Search Google for "${model.word}"`;
+  googleLink.target = "_blank";
+  googleLink.rel = "noopener";
+  googleLink.href =
+    "https://www.google.com/search?q=" +
+    encodeURIComponent(`"${model.word}"`);
+  googleLink.innerHTML =
+    '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">' +
+    '<path fill="currentColor" d="M12.24 10.285V14.4h6.806c-.275 1.765-2.056 5.174-6.806 5.174-4.095 0-7.439-3.389-7.439-7.574s3.344-7.574 7.439-7.574c2.33 0 3.891.989 4.785 1.849l3.254-3.138C18.189 1.186 15.479 0 12.24 0 5.495 0 0 5.377 0 12s5.495 12 12.24 12c7.065 0 11.76-4.967 11.76-11.96 0-.804-.086-1.418-.191-2.032h-11.57z"/>' +
+    "</svg>";
+  card.appendChild(googleLink);
 
   const head = document.createElement("div");
   head.className = "word-head";
@@ -265,6 +321,30 @@ function buildCard(model) {
   word.className = "word";
   word.textContent = model.word;
   head.appendChild(word);
+
+  // Quick-copy: grabs whatever characters occupy the title at the instant of the
+  // click — so if it's mid-scramble, you copy the exact glitched glyphs on screen.
+  const copyBtn = document.createElement("button");
+  copyBtn.className = "copy-btn";
+  copyBtn.type = "button";
+  copyBtn.title = "Copy the word as shown";
+  copyBtn.setAttribute("aria-label", "Copy word");
+  copyBtn.innerHTML = COPY_ICON;
+  let copyResetT = null;
+  copyBtn.addEventListener("click", () => {
+    const text = word.textContent; // snapshot the live title text right now
+    copyToClipboard(text);
+    copyBtn.classList.add("copied");
+    copyBtn.innerHTML = CHECK_ICON;
+    copyBtn.title = `Copied "${text}"`;
+    clearTimeout(copyResetT);
+    copyResetT = setTimeout(() => {
+      copyBtn.classList.remove("copied");
+      copyBtn.innerHTML = COPY_ICON;
+      copyBtn.title = "Copy the word as shown";
+    }, 1100);
+  });
+  head.appendChild(copyBtn);
 
   if (model.phonetic) {
     const phonetic = document.createElement("span");
@@ -365,7 +445,9 @@ function relRow(label, items) {
 const GAP = 20; // must match the column gap in style.css
 const COL_MIN = 340; // target card width; drives how many columns we use
 const MAX_COLS = 3; // three across reads as the most balanced
-const STAGGER = 85; // ms between each card's entrance, for a cascade
+const STAGGER_BASE = 85; // ms between each card's entrance, for a cascade
+let STAGGER = STAGGER_BASE; // live value, scaled by the spawn-speed control
+let spawnSpeed = 1; // spawn scramble speed multiplier (higher = faster)
 
 // How many columns to use: as many ~COL_MIN-wide columns as fit, capped at
 // MAX_COLS, and never more than the number of cards.
@@ -562,8 +644,10 @@ const GLYPHS =
   "ｦｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ"; // half-width katakana
 const randGlyph = () => GLYPHS[(Math.random() * GLYPHS.length) | 0];
 const SCRAMBLE_CHAR = /[A-Za-z0-9]/; // cycle letters/digits; keep spaces & punctuation
-const CASCADE = 950; // ms spread of the top-to-bottom resolve across a card
-const NODE_DUR = 700; // ms for a single text node to resolve
+const CASCADE_BASE = 950; // ms spread of the top-to-bottom resolve across a card
+const NODE_DUR_BASE = 700; // ms for a single text node to resolve
+let CASCADE = CASCADE_BASE; // live values, scaled by the spawn-speed control
+let NODE_DUR = NODE_DUR_BASE;
 const SWAP_MS = 55; // how often the random glyphs re-roll (higher = slower cycle)
 
 // One shared rAF loop drives every active text node, across all cards, so we
@@ -662,19 +746,23 @@ function scrambleCard(card, baseDelay) {
 // frame (smooth following) while the glyph identities re-roll on a slower beat
 // (so they tumble rather than strobe). One shared rAF loop covers all cards.
 const HOVER_RADIUS = 62; // px around the cursor that gets scrambled
-const HOVER_SWAP_MS = 60; // how often glyphs re-roll while fully heated
+const HOVER_SWAP_BASE = 60; // how often glyphs re-roll while fully heated
+let HOVER_SWAP_MS = HOVER_SWAP_BASE; // live value, scaled by the hover-speed control
+let hoverSpeed = 1; // hover scramble speed multiplier (higher = faster)
 // Each character carries a "heat" (1 under the cursor, 0 at rest). When the
 // cursor moves off it, heat decays to 0 over up to HOVER_DECAY_MS — and the
 // re-roll thins out with the heat, so the tumbling slows more and more before
 // the character finally locks to its real value. This unifies hover + linger:
 // the wind-down happens wherever the cursor moves away, on every card.
-const HOVER_DECAY_MS = 4000; // longest wind-down once a char leaves the radius
+const HOVER_DECAY_BASE = 4000; // longest wind-down once a char leaves the radius
+let HOVER_DECAY_MS = HOVER_DECAY_BASE; // live value, set by the hover-linger control
 const HOVER_TWITCH_HEAT = 0.2; // below this heat a char flickers erratically...
 const HOVER_TWITCH_CHANCE = 0.16; // ...at this per-swap chance (the last glitch)
 
 let hoverNodes = []; // see registerHoverCard for the per-node shape
 let hoverRAF = null;
 let hoverActive = false; // pointer is currently inside the cards area
+let hoverEnabled = true; // master switch for the hover scramble effect (toggle)
 let hoverMeasured = false; // per-node bounding boxes have been measured
 let hoverReadyAt = 0; // wait for the intro animation to settle before measuring
 let hoverClientX = 0, hoverClientY = 0;
@@ -838,6 +926,7 @@ function startHover() {
 }
 
 els.cards.addEventListener("pointermove", (e) => {
+  if (!hoverEnabled) return; // effect switched off: ignore the cursor entirely
   hoverClientX = e.clientX;
   hoverClientY = e.clientY;
   startHover();
@@ -917,7 +1006,61 @@ function syncBtnLabel() {
   els.btn.textContent = clampCount() === 1 ? "New Word" : "New Words";
 }
 
+// Flip the hover scramble effect on/off. Turning it off drops the cursor so any
+// heated characters wind down to their real text and the loop quiets itself.
+function setHoverEnabled(on) {
+  hoverEnabled = on;
+  if (!on) hoverActive = false;
+  if (els.hoverToggle.checked !== on) els.hoverToggle.checked = on;
+}
+
+// --- Tuning potentiometers ---------------------------------------------------
+// Three sliders: spawn speed scales the intro scramble (resolve + cascade) and
+// applies to the next batch; hover speed scales the live glyph re-roll rate; and
+// hover linger sets how long characters take to wind down after the cursor leaves.
+const fmtMult = (v) => v.toFixed(2).replace(/\.?0+$/, "") + "×";
+
+function applySpawnSpeed() {
+  NODE_DUR = NODE_DUR_BASE / spawnSpeed;
+  CASCADE = CASCADE_BASE / spawnSpeed;
+  STAGGER = STAGGER_BASE / spawnSpeed;
+}
+
+els.spawnSpeed.addEventListener("input", () => {
+  spawnSpeed = parseFloat(els.spawnSpeed.value);
+  applySpawnSpeed();
+  els.spawnSpeedVal.textContent = fmtMult(spawnSpeed);
+});
+els.hoverSpeed.addEventListener("input", () => {
+  hoverSpeed = parseFloat(els.hoverSpeed.value);
+  HOVER_SWAP_MS = HOVER_SWAP_BASE / hoverSpeed;
+  els.hoverSpeedVal.textContent = fmtMult(hoverSpeed);
+});
+els.hoverLinger.addEventListener("input", () => {
+  HOVER_DECAY_MS = parseFloat(els.hoverLinger.value);
+  els.hoverLingerVal.textContent = (HOVER_DECAY_MS / 1000).toFixed(1) + "s";
+});
+
+// FX dropdown: one button reveals the effect controls; clicking outside or
+// pressing Escape closes it again. Keeps the top bar to just Count / FX / New.
+function setFxOpen(open) {
+  els.fxMenu.hidden = !open;
+  els.fxBtn.classList.toggle("is-open", open);
+  els.fxBtn.setAttribute("aria-expanded", String(open));
+}
+els.fxBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  setFxOpen(els.fxMenu.hidden);
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".fx")) setFxOpen(false);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") setFxOpen(false);
+});
+
 els.btn.addEventListener("click", newWords);
 els.countInput.addEventListener("input", syncBtnLabel);
+els.hoverToggle.addEventListener("change", () => setHoverEnabled(els.hoverToggle.checked));
 
 loadWords();

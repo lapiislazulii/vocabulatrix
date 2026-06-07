@@ -15,6 +15,30 @@
           Count
           <input id="countInput" class="count-input" type="number" min="1" max="10" value="1" />
         </label>
+        <div class="fx">
+          <button id="fxBtn" class="btn" type="button" aria-haspopup="true" aria-expanded="false">FX</button>
+          <div id="fxMenu" class="fx-menu" hidden>
+            <label class="fx-row fx-switch">
+              <span>Hover effect</span>
+              <input id="hoverToggle" type="checkbox" checked />
+            </label>
+            <label class="fx-row">
+              <span class="pot-label">Spawn speed</span>
+              <input id="spawnSpeed" class="pot-input" type="range" min="0.25" max="3" step="0.05" value="1" />
+              <span class="pot-val" id="spawnSpeedVal">1×</span>
+            </label>
+            <label class="fx-row">
+              <span class="pot-label">Hover speed</span>
+              <input id="hoverSpeed" class="pot-input" type="range" min="0.25" max="3" step="0.05" value="1" />
+              <span class="pot-val" id="hoverSpeedVal">1×</span>
+            </label>
+            <label class="fx-row">
+              <span class="pot-label">Hover linger</span>
+              <input id="hoverLinger" class="pot-input" type="range" min="0" max="8000" step="100" value="4000" />
+              <span class="pot-val" id="hoverLingerVal">4.0s</span>
+            </label>
+          </div>
+        </div>
         <button id="newWordBtn" class="btn" disabled>New Word</button>
       </div>
     </header>
@@ -22,6 +46,19 @@
     <section id="status" class="status">Loading word list…</section>
 
     <section id="cards" class="cards"></section>
+
+    <footer class="page-foot">
+      <p>
+        <strong>To start:</strong> run <code>python serve.py</code> (or double-click
+        <code>start.bat</code> on Windows), then open <code>http://localhost:8765/</code>.
+      </p>
+      <p>
+        There's also an offline single-file version
+        (<code>html only version/vocabulatrix.html</code>) you can open straight in a
+        browser with no server — it carries a smaller built-in word list
+        (~102k words vs. ~370k here).
+      </p>
+    </footer>
   </main>
 
   <script src="app.js"></script>

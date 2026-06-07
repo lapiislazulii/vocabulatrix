@@ -82,6 +82,55 @@ body {
   color: var(--faint);
 }
 
+/* FX dropdown: all the effect controls collapsed behind a single button. */
+.fx { position: relative; display: inline-flex; }
+.fx-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 248px;
+  padding: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+.fx-menu[hidden] { display: none; }
+.fx-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.fx-switch { cursor: pointer; }
+.fx-switch input {
+  width: 16px;
+  height: 16px;
+  accent-color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+}
+.pot-label { white-space: nowrap; }
+.pot-input {
+  flex: 1;
+  min-width: 0;
+  accent-color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+}
+.pot-val {
+  min-width: 40px;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .count-input {
   width: 54px;
   background: var(--surface-2);
@@ -116,6 +165,7 @@ body {
 }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: 0.4; cursor: default; }
+.btn.is-open { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.22); }
 
 .status {
   text-align: center;
@@ -198,6 +248,24 @@ body {
 /* Reduced-motion: app.js skips the rAF drive and leaves a calm static ring. */
 
 
+/* Grey Google "G" pinned to the card's top-right corner. */
+.google-search {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.35);
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+
+.google-search:hover {
+  color: rgba(255, 255, 255, 0.85);
+  transform: scale(1.12);
+}
+
 .word-head {
   display: flex;
   align-items: baseline;
@@ -239,6 +307,26 @@ body {
   transition: background 0.18s ease;
 }
 .audio-btn:hover { background: rgba(255, 255, 255, 0.16); }
+
+/* Quick-copy icon, pinned to the card's top-right next to the Google "G" so it
+   stays put even as the title's scrambling glyphs change width. Flashes green. */
+.copy-btn {
+  position: absolute;
+  top: 14px;
+  right: 40px;
+  z-index: 2;
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+.copy-btn:hover { color: rgba(255, 255, 255, 0.85); transform: scale(1.12); }
+.copy-btn.copied { color: #4caf50; transform: scale(1.12); }
 
 .meaning { margin-bottom: 26px; }
 
@@ -331,3 +419,25 @@ body {
 .source-urls a:hover { color: var(--text); }
 
 .hidden { display: none; }
+
+/* Footer: how to start the app + a pointer to the offline single-file build. */
+.page-foot {
+  margin-top: 56px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--faint);
+}
+.page-foot p { margin: 0 0 8px; }
+.page-foot p:last-child { margin-bottom: 0; }
+.page-foot strong { color: var(--muted); font-weight: 600; }
+.page-foot code {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 12px;
+  color: var(--text);
+}
